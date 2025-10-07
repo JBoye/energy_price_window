@@ -15,6 +15,8 @@ ATTR_START_TIME = "start_time"
 ATTR_END_TIME = "end_time"
 ATTR_DURATION = "duration"
 ATTR_CONTINUOUS = "continuous"
+ATTR_NEXT_START_TIME = "next_start_time"
+ATTR_AVERAGE = "average"
 ATTR_LAST_CALCULATED = "last_calculated"
 
 DEFAULT_NAME = "Price Window"
