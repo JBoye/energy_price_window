@@ -9,7 +9,7 @@ from .const import (
 	CONF_SOURCE_ENTITY, CONF_NAME, CONF_START_TIME, CONF_END_TIME, CONF_DURATION, CONF_CONTINUOUS,
 	DEFAULT_NAME, DEFAULT_START_TIME, DEFAULT_END_TIME, DEFAULT_DURATION, DEFAULT_CONTINUOUS,
 	# new (make sure these exist in const.py)
-	CONF_FORECAST_SOURCE_ENTITY, CONF_FORECAST_ENTITY,
+	CONF_FORECAST_SOURCE_ENTITY, CONF_FORECAST_SOURCE_ENTITY,
 )
 
 # start_time / end_time are OPTIONAL; leave empty to use runtime defaults.
@@ -65,7 +65,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 				vol.Required(CONF_SOURCE_ENTITY, default=data.get(CONF_SOURCE_ENTITY, "")): selector.EntitySelector(
 					selector.EntitySelectorConfig(domain=["sensor"])
 				),
-				vol.Optional(CONF_FORECAST_SOURCE_ENTITY, default=data.get(CONF_FORECAST_SOURCE_ENTITY, data.get(CONF_FORECAST_ENTITY, ""))): selector.EntitySelector(
+				vol.Optional(CONF_FORECAST_SOURCE_ENTITY, default=data.get(CONF_FORECAST_SOURCE_ENTITY, "")): selector.EntitySelector(
 					selector.EntitySelectorConfig(domain=["sensor"])
 				),
 				vol.Optional(CONF_NAME, default=data.get(CONF_NAME, DEFAULT_NAME)): selector.TextSelector(),
