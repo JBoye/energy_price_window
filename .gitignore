@@ -1,0 +1,76 @@
+# ---- OS cruft (macOS) ----
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# ---- Python bytecode & C extensions ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ---- Packaging / build artifacts ----
+build/
+dist/
+wheels/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ---- Test & coverage caches ----
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+.cache/
+.pytype/
+
+# ---- Editors / IDEs ----
+.idea/
+.vscode/
+*.code-workspace
+
+# ---- Logs ----
+*.log
+
+# ---- Docs (Sphinx) ----
+docs/_build/
+
+# ---- Node / frontend (optional) ----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+coverage/
+*.tsbuildinfo
+dist/
+.eslintcache
+
+# ---- Home Assistant local dev artifacts ----
+*.db
+home-assistant_v2.db*
+home-assistant.log*
+deps/
+.storage/
+.config/
+
+# ---- Env / secrets ----
+.env
+.env.*
+*.env
+secrets.yaml

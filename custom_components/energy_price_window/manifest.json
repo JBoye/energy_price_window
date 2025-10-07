@@ -1,0 +1,11 @@
+{
+  "domain": "energy_price_window",
+  "name": "Energy Price Window",
+  "version": "0.3.0",
+  "documentation": "",
+  "requirements": [],
+  "codeowners": ["@JBoye"],
+  "iot_class": "local_polling",
+  "loggers": ["custom_components.energy_price_window"],
+  "config_flow": true
+}

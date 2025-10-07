@@ -1,0 +1,20 @@
+{
+  "title": "Energy Price Window",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Energy Price Window",
+        "description": "Compute cheapest intervals from a price sensor. Fields accept Jinja templates.",
+        "data": {
+          "sensor_name": "Source price sensor (Energi Data Service or Strømligning)",
+          "forecast_source_entity": "Forecast price sensor (optional)",
+          "name": "Entity name",
+          "start_time": "start_time template",
+          "end_time": "end_time template",
+          "duration": "duration template",
+          "continuous": "continuous template"
+        }
+      }
+    }
+  }
+}
