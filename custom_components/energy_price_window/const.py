@@ -20,7 +20,7 @@ ATTR_AVERAGE = "average"
 ATTR_LAST_CALCULATED = "last_calculated"
 
 DEFAULT_NAME = "Price Window"
-DEFAULT_START_TIME: str | None = None     # -> defaults to now()
-DEFAULT_END_TIME: str | None = None       # -> defaults to dataset end
+DEFAULT_START_TIME: str | None = None  # -> defaults to now()
+DEFAULT_END_TIME: str | None = None  # -> defaults to dataset end
 DEFAULT_DURATION = "3:00"
 DEFAULT_CONTINUOUS = True
