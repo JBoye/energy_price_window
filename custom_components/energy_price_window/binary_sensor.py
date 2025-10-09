@@ -1,7 +1,9 @@
 from __future__ import annotations
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+
 from collections.abc import Callable
+from datetime import datetime, timedelta
+import logging
+from typing import Any, Dict, List, Optional, Tuple
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -38,6 +40,9 @@ from .const import (
     DEFAULT_DURATION,
     DEFAULT_CONTINUOUS,
 )
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -127,29 +132,28 @@ class PriceWindowBinarySensor(BinarySensorEntity):
             rendered = await tmpl.async_render(parse_result=True)
         except TypeError:
             rendered = await tmpl.async_render()
-        except TemplateError:
+        except TemplateError as err:
+            LOGGER.warning("Failed to render template for %s: %s", self.entity_id, err)
             return None
         result = getattr(rendered, "result", rendered)
         return result
 
     def _parse_datetime(self, value: Any) -> Optional[datetime]:
         if isinstance(value, datetime):
-            return (
-                value.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
-                if value.tzinfo is None
-                else value
-            )
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+            return dt_util.as_local(value)
         if isinstance(value, str):
             dt = dt_util.parse_datetime(value)
             if dt:
-                return (
-                    dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
-                    if dt.tzinfo is None
-                    else dt
-                )
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+                return dt_util.as_local(dt)
             try:
                 naive = datetime.fromisoformat(value)
-                return naive.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+                if naive.tzinfo is None:
+                    naive = naive.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+                return dt_util.as_local(naive)
             except Exception:
                 return None
         return None
@@ -364,6 +368,16 @@ class PriceWindowBinarySensor(BinarySensorEntity):
 
         primary = self._read_items_from_entity(self._entity_id)
         if not primary:
+            self._apply_state(
+                now_local,
+                intervals=[],
+                start_dt=None,
+                end_dt=None,
+                duration_td=None,
+                continuous=self._parse_bool(self._continuous_raw),
+                next_start=None,
+                weighted_avg=None,
+            )
             return
 
         if len(primary) >= 1:
@@ -394,7 +408,7 @@ class PriceWindowBinarySensor(BinarySensorEntity):
         end_val = await self._render_native(self._tmpl_end)
         duration_val = await self._render_native(self._tmpl_duration)
 
-        start_dt = None
+        start_dt: Optional[datetime] = None
         if start_val is not None:
             start_dt = self._parse_today_time(
                 start_val, now_local
@@ -402,7 +416,7 @@ class PriceWindowBinarySensor(BinarySensorEntity):
         if start_dt is None:
             start_dt = now_local
 
-        end_dt = None
+        end_dt: Optional[datetime] = None
         if end_val is not None:
             end_dt = self._parse_today_time(end_val, now_local) or self._parse_datetime(
                 end_val
@@ -410,16 +424,21 @@ class PriceWindowBinarySensor(BinarySensorEntity):
         if end_dt is None:
             end_dt = items_all[-1]["end"]
 
-        if start_dt.tzinfo is None:
-            start_dt = start_dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
-        if end_dt.tzinfo is None:
-            end_dt = end_dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
-
         if end_dt <= now_local:
             end_dt = end_dt + timedelta(days=1)
 
         duration_td = self._parse_duration(duration_val)
         if not duration_td:
+            self._apply_state(
+                now_local,
+                intervals=[],
+                start_dt=start_dt,
+                end_dt=end_dt,
+                duration_td=None,
+                continuous=self._parse_bool(self._continuous_raw),
+                next_start=None,
+                weighted_avg=None,
+            )
             return
 
         continuous = (
@@ -435,18 +454,16 @@ class PriceWindowBinarySensor(BinarySensorEntity):
                 s, e = clipped
                 segs.append({"start": s, "end": e, "price": it["price"]})
         if not segs:
-            self._attr_is_on = False
-            self._attr_extra_state_attributes = {
-                ATTR_INTERVALS: [],
-                ATTR_START_TIME: start_dt.isoformat(),
-                ATTR_END_TIME: end_dt.isoformat(),
-                ATTR_DURATION: duration_td.total_seconds() / 3600,
-                ATTR_CONTINUOUS: bool(continuous),
-                ATTR_NEXT_START_TIME: None,
-                ATTR_AVERAGE: None,
-                ATTR_LAST_CALCULATED: now_local.isoformat(),
-            }
-            self.async_write_ha_state()
+            self._apply_state(
+                now_local,
+                intervals=[],
+                start_dt=start_dt,
+                end_dt=end_dt,
+                duration_td=duration_td,
+                continuous=continuous,
+                next_start=None,
+                weighted_avg=None,
+            )
             return
         segs.sort(key=lambda x: x["start"])
 
@@ -566,19 +583,52 @@ class PriceWindowBinarySensor(BinarySensorEntity):
                 / total_sec
             )
 
+        self._apply_state(
+            now_local,
+            intervals=intervals,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            duration_td=duration_td,
+            continuous=continuous,
+            next_start=next_start,
+            weighted_avg=weighted_avg,
+            active=active,
+        )
+
+    def _apply_state(
+        self,
+        now_local: datetime,
+        *,
+        intervals: List[dict],
+        start_dt: Optional[datetime],
+        end_dt: Optional[datetime],
+        duration_td: Optional[timedelta],
+        continuous: bool,
+        next_start: Optional[datetime],
+        weighted_avg: Optional[float],
+        active: Optional[bool] = None,
+    ) -> None:
+        if active is None:
+            active = any(
+                interval["start"] <= now_local < interval["end"]
+                for interval in intervals
+            )
+
         self._attr_is_on = active
         self._attr_extra_state_attributes = {
             ATTR_INTERVALS: [
                 {
-                    "start": dt_util.as_local(i["start"]).isoformat(),
-                    "end": dt_util.as_local(i["end"]).isoformat(),
-                    "average": i["average"],
+                    "start": dt_util.as_local(interval["start"]).isoformat(),
+                    "end": dt_util.as_local(interval["end"]).isoformat(),
+                    "average": interval["average"],
                 }
-                for i in intervals
+                for interval in intervals
             ],
-            ATTR_START_TIME: start_dt.isoformat(),
-            ATTR_END_TIME: end_dt.isoformat(),
-            ATTR_DURATION: duration_td.total_seconds() / 3600,
+            ATTR_START_TIME: start_dt.isoformat() if start_dt else None,
+            ATTR_END_TIME: end_dt.isoformat() if end_dt else None,
+            ATTR_DURATION: (
+                duration_td.total_seconds() / 3600 if duration_td else None
+            ),
             ATTR_CONTINUOUS: bool(continuous),
             ATTR_NEXT_START_TIME: (
                 dt_util.as_local(next_start).isoformat() if next_start else None
