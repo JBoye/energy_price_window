@@ -340,6 +340,9 @@ class PriceWindowBinarySensor(BinarySensorEntity):
 		if not duration_td:
 			return
 
+		if start_dt + duration_td > end_dt:
+			end_dt = start_dt + duration_td
+
 		continuous = self._continuous_raw if isinstance(self._continuous_raw, bool) else self._parse_bool(self._continuous_raw)
 
 		segs = []
