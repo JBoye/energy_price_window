@@ -6,6 +6,7 @@ from collections.abc import Callable
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import template
 from homeassistant.helpers.event import (
     async_track_state_change_event,
@@ -119,13 +120,17 @@ class PriceWindowBinarySensor(BinarySensorEntity):
     async def _handle_template_result(self, *_):
         await self._recalc()
 
-    def _render_native(self, tmpl: template.Template | None) -> Any:
+    async def _render_native(self, tmpl: template.Template | None) -> Any:
         if tmpl is None:
             return None
         try:
-            return tmpl.async_render(parse_result=True)
+            rendered = await tmpl.async_render(parse_result=True)
         except TypeError:
-            return tmpl.async_render()
+            rendered = await tmpl.async_render()
+        except TemplateError:
+            return None
+        result = getattr(rendered, "result", rendered)
+        return result
 
     def _parse_datetime(self, value: Any) -> Optional[datetime]:
         if isinstance(value, datetime):
@@ -385,9 +390,9 @@ class PriceWindowBinarySensor(BinarySensorEntity):
 
         items_all = sorted(primary + forecast, key=lambda x: x["start"])
 
-        start_val = self._render_native(self._tmpl_start)
-        end_val = self._render_native(self._tmpl_end)
-        duration_val = self._render_native(self._tmpl_duration)
+        start_val = await self._render_native(self._tmpl_start)
+        end_val = await self._render_native(self._tmpl_end)
+        duration_val = await self._render_native(self._tmpl_duration)
 
         start_dt = None
         if start_val is not None:
@@ -437,8 +442,8 @@ class PriceWindowBinarySensor(BinarySensorEntity):
                 ATTR_END_TIME: end_dt.isoformat(),
                 ATTR_DURATION: duration_td.total_seconds() / 3600,
                 ATTR_CONTINUOUS: bool(continuous),
-                "next_start_time": None,
-                "average": None,
+                ATTR_NEXT_START_TIME: None,
+                ATTR_AVERAGE: None,
                 ATTR_LAST_CALCULATED: now_local.isoformat(),
             }
             self.async_write_ha_state()
